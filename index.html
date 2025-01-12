@@ -1,0 +1,178 @@
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2025年 新春 JH2A豆まきチャレンジ！</title>
+    <style>
+        body {
+            text-align: center;
+            background: linear-gradient(to bottom, #FF851B, #FFFACD); /* Stylish gradient */
+            color: #000000;
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        h1 {
+            background-color: #FF851B;
+            color: #ffffff;
+            margin: 0;
+            padding: 20px;
+            font-size: 36px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        #score, #highScoreDisplay, #titleDisplay {
+            font-size: 24px;
+            margin: 10px 0;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        #gameCanvas {
+            border: 4px solid #FF851B;
+            background-color: #FFFACD;
+            margin-top: 20px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+        }
+        button {
+            background-color: #FF851B;
+            color: #ffffff;
+            border: none;
+            padding: 10px 20px;
+            font-size: 18px;
+            border-radius: 10px;
+            cursor: pointer;
+            margin: 20px auto;
+            display: block;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+        }
+        button:hover {
+            background-color: #E67E22;
+            box-shadow: 0 6px 10px rgba(0, 0, 0, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <h1>2025年 新春 JH2A豆まきチャレンジ！</h1>
+    <p id="highScoreDisplay">これまでのハイスコア: 0</p>
+    <p id="score">得点: 0</p>
+    <p id="titleDisplay">称号: 未設定</p>
+    <canvas id="gameCanvas" width="600" height="400"></canvas>
+    <button id="startButton">ゲーム開始</button>
+    <audio id="bgm" loop>
+        <source src="https://www.bensound.com/bensound-music/bensound-ukulele.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="beanHitSound">
+        <source src="https://www.soundjay.com/button/sounds/button-29.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="gongSound">
+        <source src="https://www.soundjay.com/misc/sounds/gong-1.mp3" type="audio/mpeg">
+    </audio>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const startButton = document.getElementById('startButton');
+        const highScoreDisplay = document.getElementById('highScoreDisplay');
+        const titleDisplay = document.getElementById('titleDisplay');
+        let score = 0;
+        let timer = 15;
+        let highScore = localStorage.getItem('highScore') || 0;
+        const bgm = document.getElementById('bgm');
+        const beanHitSound = document.getElementById('beanHitSound');
+        const gongSound = document.getElementById('gongSound');
+
+        highScoreDisplay.innerText = `これまでのハイスコア: ${highScore}`;
+        document.getElementById('score').innerText = `得点: 0`;
+
+        const updateTitle = (score) => {
+            if (score < 300) return "豆まきビギナー";
+            if (score < 500) return "豆まきスタッフ";
+            if (score < 1000) return "豆まきマスター";
+            return "豆まきキング";
+        };
+
+        const oniTypes = [
+            { color: 'red', points: 10, chance: 0.8 },
+            { color: 'blue', points: 20, chance: 0.15 },
+            { color: 'green', points: 30, chance: 0.04 },
+            { color: 'gold', points: 100, chance: 0.009 },
+            { color: 'black', points: 1000, chance: 0.001 },
+        ];
+
+        const drawOni = (x, y, color) => {
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.arc(x, y, 30, 0, Math.PI * 2); // Smaller circle
+            ctx.fill();
+            ctx.fillStyle = 'black';
+            ctx.font = "30px Arial"; // Smaller font size
+            ctx.fillText('👹', x - 15, y + 10); // Adjusted position
+        };
+
+        const spawnOni = () => {
+            const random = Math.random();
+            let cumulativeChance = 0;
+            const oni = oniTypes.find((oniType) => {
+                cumulativeChance += oniType.chance;
+                return random < cumulativeChance;
+            });
+
+            if (!oni) return;
+
+            const x = Math.random() * canvas.width;
+            const y = Math.random() * canvas.height;
+
+            drawOni(x, y, oni.color);
+
+            const timeoutId = setTimeout(() => {
+                ctx.clearRect(x - 30, y - 30, 60, 60); // Clear the oni after timeout
+            }, 2000);
+
+            const handleClick = (event) => {
+                const rect = canvas.getBoundingClientRect();
+                const clickX = event.clientX - rect.left;
+                const clickY = event.clientY - rect.top;
+
+                if (Math.hypot(clickX - x, clickY - y) < 30) {
+                    clearTimeout(timeoutId); // Clear timeout to prevent delayed removal
+                    ctx.clearRect(x - 30, y - 30, 60, 60); // Clear oni immediately
+                    score += oni.points;
+                    document.getElementById('score').innerText = `得点: ${score}`;
+                    titleDisplay.innerText = `称号: ${updateTitle(score)}`;
+                    beanHitSound.play();
+                    canvas.removeEventListener('click', handleClick); // Remove click handler after hit
+                }
+            };
+
+            canvas.addEventListener('click', handleClick);
+        };
+
+        const startGame = () => {
+            score = 0;
+            timer = 15;
+            document.getElementById('score').innerText = `得点: ${score}`;
+            titleDisplay.innerText = `称号: 未設定`;
+            startButton.style.display = 'none';
+            bgm.play();
+
+            const gameInterval = setInterval(spawnOni, 1000);
+            const timerInterval = setInterval(() => {
+                timer--;
+                if (timer === 0) {
+                    clearInterval(gameInterval);
+                    clearInterval(timerInterval);
+                    if (score > highScore) {
+                        highScore = score;
+                        localStorage.setItem('highScore', highScore);
+                    }
+                    bgm.pause();
+                    gongSound.play();
+                    alert(`ゲーム終了！最終得点: ${score}\n称号: ${updateTitle(score)}\nこれまでのハイスコア: ${highScore}`);
+                    startButton.style.display = 'block';
+                }
+            }, 1000);
+        };
+
+        startButton.addEventListener('click', startGame);
+    </script>
+</body>
+</html>
